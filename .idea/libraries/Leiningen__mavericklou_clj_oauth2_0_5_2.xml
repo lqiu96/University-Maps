@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Leiningen: mavericklou/clj-oauth2:0.5.2">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/mavericklou/clj-oauth2/0.5.2/clj-oauth2-0.5.2.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
