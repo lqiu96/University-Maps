@@ -1,4 +1,4 @@
-(defproject university-maps "0.1.1"
+(defproject university-maps "0.1.2"
   :description "Gets tweets and facebook posts about universities,
    does sentiment analysis based on the text and returns the data
    in a csv file that can be presented in Google Maps Javascript API"

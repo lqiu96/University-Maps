@@ -1,7 +1,8 @@
 (ns university-maps.core
   (require
     [clojure.string :as str :only (split)]
-    [clj-facebook-graph [client :as client]])
+    [clj-facebook-graph [client :as client]]
+    [clojure.java.io :as io])
   (:use
     [twitter.oauth]
     [twitter.callbacks]
@@ -14,11 +15,23 @@
     :name "UniversityData"
     :methods [[getData [String String] void]]))
 
+(defn get-file-path
+  "Given a file path, it gets all the files in the current directory
+  and searches for the files."
+  [file-name]
+  (let [fs (file-seq (io/file (System/getProperty "user.dir")))
+        file-vec (vec fs)]
+    (.getPath (first (filter
+                       #(and (not (.isDirectory %))
+                             (= file-name (.getName %)))
+                       file-vec)))))
+
 ; Reads the data from UnivDataInfo.csv file. Data is split into 4 columsn for each
 ; university: name, latitude, longitude, hash-tag, and facebook-id. Each university is a hash-map
 ; inside an outer list
 (def university-data
-  (let [data-string (slurp "resources/UnivDataInfo.csv")
+  ;(let [data-string (slurp "src/university_maps/UnivDataInfo.csv")
+  (let [data-string (slurp (get-file-path "UnivDataInfo.csv"))
         all-uni-vec (str/split data-string #"\r\n")
         all-individual-uni-vec (map #(str/split % #",") all-uni-vec)]
     (map #(zipmap [:uni-name :lat :long :uni-hash-tag :uni-facebook-id] %) all-individual-uni-vec)))
@@ -27,7 +40,8 @@
 ; word: Word and the corresponding sentiment value. Each word is a hashtag inside an
 ; outer list
 (def word-sentiment-data
-  (let [line (slurp "resources/WordSentiment.csv")
+  ;(let [line (slurp "src/university_maps/WordSentiment.csv")
+  (let [line (slurp (get-file-path "WordSentiment.csv"))
         all-word-vector (str/split line #"\n")]
     (apply hash-map (flatten (map #(str/split % #",") all-word-vector)))))
 
@@ -56,10 +70,10 @@
                  :callbacks (SyncSingleCallback. response-return-body
                                                  response-throw-error
                                                  exception-rethrow)
-                 :params {:q uni-hashtag
-                          :count 10
-                          :lang "en"
-                          :result-type "recent"
+                 :params {:q                uni-hashtag
+                          :count            10
+                          :lang             "en"
+                          :result-type      "recent"
                           :include-entities false}))
 
 (defn get-university-tweets
@@ -67,7 +81,7 @@
   in a list of strings"
   [uni-hashtag]
   (->> (get-in (search-university-by-hashtag uni-hashtag) [:statuses])
-      (map #(get % :text))))
+       (map #(get % :text))))
 
 ; Creates a facebook authentication of an app access token
 (def facebook-auth {:access-token "1511065829189005|mvSxiANHsZZrtreOpRVwRJ6dovA"})
@@ -99,23 +113,34 @@
     (str (get uni :uni-name) "," (get uni :lat) "," (get uni :long) "," (get uni :uni-hash-tag) "," (get uni :uni-facebook-id)
          "," line "," (sum-sentiment line) "\n")))
 
+(defn create-file
+  "Checks if the file location exists. If not, it creates the file all
+  the necessary parent directories"
+  [file-location]
+  (if (.exists (io/file file-location))
+    nil
+    (io/make-parents file-location)))
+
 (defn get-data
   "For each university, it gets the tweets and facebook page feed,
   calculates the sentiment for each post, and puts each line back
   into the respective csv files"
   [twitter-location facebook-location]
-  (doseq [uni university-data]
-    (let [twitter-data (->> (get uni :uni-hash-tag)
-                            (get-university-tweets)
-                            (map #(create-line uni %))
-                            (future))
-          facebook-data (->> (get uni :uni-facebook-id)
-                             (get-facebook-page-feed)
-                             (map #(create-line uni %))
-                             (future))]
-      (do
-        (write-to-file twitter-location @twitter-data)
-        (write-to-file facebook-location @facebook-data)))))
+  (do
+    (create-file twitter-location)
+    (create-file facebook-location)
+    (doseq [uni university-data]
+      (let [twitter-data (->> (get uni :uni-hash-tag)
+                              (get-university-tweets)
+                              (map #(create-line uni %))
+                              (future))
+            facebook-data (->> (get uni :uni-facebook-id)
+                               (get-facebook-page-feed)
+                               (map #(create-line uni %))
+                               (future))]
+        (do
+          (write-to-file twitter-location @twitter-data)
+          (write-to-file facebook-location @facebook-data))))))
 
 (defn -getData
   [twitter-location facebook-location]
