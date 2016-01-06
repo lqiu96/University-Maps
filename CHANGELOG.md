@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 - Data from Twitter and Facebook is split into two files.
 - Added :gen-class to be run in a java project
+- Allowed the user to specify how many results they want back
+- Added functionality to be able to search the directory for
+the 'UnivDataInfo.csv' and 'WordSentiment.csv' files
+- Added multi-arity (get-data) function which sets num-result as defualt of 10
 
 ## [Unreleased][unreleased]
 ### Changed
