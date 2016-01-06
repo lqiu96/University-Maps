@@ -2,7 +2,8 @@
   (require
     [clojure.string :as str :only (split)]
     [clj-facebook-graph [client :as client]]
-    [clojure.java.io :as io])
+    [clojure.java.io :as io]
+    [university-maps.config :as config])
   (:use
     [twitter.oauth]
     [twitter.callbacks]
@@ -30,7 +31,6 @@
 ; university: name, latitude, longitude, hash-tag, and facebook-id. Each university is a hash-map
 ; inside an outer list
 (def university-data
-  ;(let [data-string (slurp "src/university_maps/UnivDataInfo.csv")
   (let [data-string (slurp (get-file-path "UnivDataInfo.csv"))
         all-uni-vec (str/split data-string #"\r\n")
         all-individual-uni-vec (map #(str/split % #",") all-uni-vec)]
@@ -40,7 +40,6 @@
 ; word: Word and the corresponding sentiment value. Each word is a hashtag inside an
 ; outer list
 (def word-sentiment-data
-  ;(let [line (slurp "src/university_maps/WordSentiment.csv")
   (let [line (slurp (get-file-path "WordSentiment.csv"))
         all-word-vector (str/split line #"\n")]
     (apply hash-map (flatten (map #(str/split % #",") all-word-vector)))))
@@ -57,10 +56,10 @@
       (reduce + (map #(read-string (get word-values % "0")) tweet-words)))))
 
 ; Create the ouath credentials to be able to make twitter API calls
-(def my-creds (make-oauth-creds "MYzAR76HJ1l3abTtpbaAldFQs"
-                                "xoViuhYOFQrhGmPXKdaoVVH1svrnpwZpWUVwKhxCF9P4jQdwDp"
-                                "2987971120-Iw5cvmU86JsORVpFNJmFk2el4g2xP8zVG7gpWpW"
-                                "opMJOnxrwPTsMUhlx9eYGgVcFjTZgTWnojBWHMK33DIPi"))
+(def my-creds (make-oauth-creds config/twitter-consumer-key
+                                config/twitter-consumer-secret
+                                config/twitter-access-token
+                                config/twitter-access-toke-secret))
 
 (defn search-university-by-hashtag
   "Searches twitter given a hashtag and returns the JSON response.
@@ -84,7 +83,7 @@
        (map #(get % :text))))
 
 ; Creates a facebook authentication of an app access token
-(def facebook-auth {:access-token "1511065829189005|mvSxiANHsZZrtreOpRVwRJ6dovA"})
+(def facebook-auth {:access-token config/facebook-access-token})
 
 (defn get-facebook-page-feed
   "Based on the page id, it gets the list of 10 posts on the page's feed.
@@ -129,8 +128,9 @@
   (do
     (create-file twitter-location)
     (create-file facebook-location)
+    (println "Start")
     (doseq [uni university-data]
-      (println (get uni :uni-name))
+      (println "Getting" (get uni :uni-name) "'s data")
       (let [twitter-data (->> (get uni :uni-hash-tag)
                               (get-university-tweets)
                               (map #(create-line uni %))
@@ -149,12 +149,15 @@
   Takes in two parameters which determine the locations to store the Twitter and Facebook
   data respectively"
   [twitter-location facebook-location]
-  (get-data twitter-location facebook-location))
+  (if (or (nil? twitter-location) (nil? facebook-location))
+    (get-data "output/TwitterOutput.csv" "output/FacebookOutput.csv")
+    (get-data twitter-location facebook-location)))
 
 (defn -main
   "Main function that will be called when the Jar file is called by itself.
   If two locations are not provided, it will output to a default directory (called output)"
   [& args]
-  (if (not (= (count args) 2))
+  (if (or (not (= (count args) 2))
+          (or (nil? (first args)) (nil? (second args))))
     (get-data "output/TwitterOutput.csv" "output/FacebookOutput.csv")
     (get-data (first args) (second args))))
