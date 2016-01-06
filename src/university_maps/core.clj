@@ -13,7 +13,7 @@
     (twitter.callbacks.protocols SyncSingleCallback))
   (:gen-class
     :name "UniversityData"
-    :methods [[getData [String String] void]]))
+    :methods [#^{:static true} [getData [String String] void]]))
 
 (defn get-file-path
   "Given a file path, it gets all the files in the current directory
@@ -130,6 +130,7 @@
     (create-file twitter-location)
     (create-file facebook-location)
     (doseq [uni university-data]
+      (println (get uni :uni-name))
       (let [twitter-data (->> (get uni :uni-hash-tag)
                               (get-university-tweets)
                               (map #(create-line uni %))
@@ -140,12 +141,20 @@
                                (future))]
         (do
           (write-to-file twitter-location @twitter-data)
-          (write-to-file facebook-location @facebook-data))))))
+          (write-to-file facebook-location @facebook-data))))
+    (println "Done")))
 
 (defn -getData
+  "Simple wrapper function for Java class that can call Clojure function (get-data)
+  Takes in two parameters which determine the locations to store the Twitter and Facebook
+  data respectively"
   [twitter-location facebook-location]
   (get-data twitter-location facebook-location))
 
 (defn -main
+  "Main function that will be called when the Jar file is called by itself.
+  If two locations are not provided, it will output to a default directory (called output)"
   [& args]
-  (get-data "resources/TwitterOutput.csv" "resources/FacebookOutput.csv"))
+  (if (not (= (count args) 2))
+    (get-data "output/TwitterOutput.csv" "output/FacebookOutput.csv")
+    (get-data (first args) (second args))))
