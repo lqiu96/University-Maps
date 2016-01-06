@@ -130,7 +130,7 @@
     (create-file facebook-location)
     (println "Start")
     (doseq [uni university-data]
-      (println "Getting" (get uni :uni-name) "'s data")
+      (println (str "Getting " (get uni :uni-name) "'s data"))
       (let [twitter-data (->> (get uni :uni-hash-tag)
                               (get-university-tweets)
                               (map #(create-line uni %))
@@ -157,7 +157,7 @@
   "Main function that will be called when the Jar file is called by itself.
   If two locations are not provided, it will output to a default directory (called output)"
   [& args]
-  (if (or (not (= (count args) 2))
+  (if (or (< (count args) 2)
           (or (nil? (first args)) (nil? (second args))))
     (get-data "output/TwitterOutput.csv" "output/FacebookOutput.csv")
     (get-data (first args) (second args))))

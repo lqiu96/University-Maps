@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [0.1.2] - 2016-01-05
+### Changed
+- Data from Twitter and Facebook is split into two files.
+- Added :gen-class to be run in a java project
+
 ## [Unreleased][unreleased]
 ### Changed
 - Add a new arity to `make-widget-async` to provide a different widget shape.

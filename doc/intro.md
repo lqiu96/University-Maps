@@ -1,3 +1,5 @@
 # Introduction to university-maps
 
-TODO: write [great documentation](http://jacobian.org/writing/what-to-write/)
+Gets tweets and facebook posts about universities,
+does sentiment analysis based on the text and returns the data
+in a csv file with data that can be presented in Google Maps Javascript Project
