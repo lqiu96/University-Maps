@@ -8,7 +8,8 @@ All notable changes to this project will be documented in this file. This change
 - Allowed the user to specify how many results they want back
 - Added functionality to be able to search the directory for
 the 'UnivDataInfo.csv' and 'WordSentiment.csv' files
-- Added multi-arity (get-data) function which sets num-result as defualt of 10
+- Added multi-arity (get-data) function which sets num-result as default of 10
+- Allow user to choose how many tweets/post they want to get
 
 ## [Unreleased][unreleased]
 ### Changed

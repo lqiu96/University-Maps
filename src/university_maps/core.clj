@@ -79,16 +79,15 @@
                  :callbacks (SyncSingleCallback. response-return-body
                                                  response-throw-error
                                                  exception-rethrow)
-                 :params {:q                uni-hashtag
-                          :count            num-tweets
-                          :lang             "en"
-                          :result-type      "recent"
-                          :include-entities false}))
+                 :params {:q           uni-hashtag
+                          :count       num-tweets
+                          :lang        "en"
+                          :result-type "recent"}))
 
 (defn get-university-tweets
   "Based on the hash-tag, it gets the responses puts the each text from the tweet
   in a list of strings"
-  [uni-hashtag num-tweets]
+  [num-tweets uni-hashtag]
   (->> (get-in (search-university-by-hashtag uni-hashtag num-tweets) [:statuses])
        (map #(get % :text))))
 
@@ -99,7 +98,7 @@
   "Based on the page id, it gets the list of 10 posts on the page's feed.
   Facebook Graph API returns a list of JSON Responses and it only keeps a
   list of the messages on the page's feed."
-  [page-id num-posts]
+  [num-posts page-id]
   (map
     #(get % :message)
     (with-facebook-auth
@@ -127,25 +126,25 @@
 (defn create-file
   "Checks if the file location exists. If not, it creates the file all
   the necessary parent directories"
-  [file-location]
-  (if (.exists (io/file file-location))
-    nil
-    (io/make-parents file-location)))
+  [& file-locations]
+  (doseq [file-location file-locations]
+    (if (.exists (io/file file-location))
+      nil
+      (io/make-parents file-location))))
 
 (defn get-data
   "For each university, it gets the tweets and facebook page feed,
   calculates the sentiment for each post, and puts each line back
   into the respective csv files"
   ([twitter-location facebook-location]
-    (get-data twitter-location facebook-location 10))
+   (get-data twitter-location facebook-location 10))
   ([twitter-location facebook-location num-results]
    (if (or (< num-results 1) (= (count university-data) 1))
      (println "Error: Cannot get the data. Check to make sure both
-    UnivDataInfo.csv and WordSentiment.csv are in the directory. Also
-    check to make sure you are asking for one or more tweets/posts per university")
+     UnivDataInfo.csv and WordSentiment.csv are in the directory. Also
+     check to make sure you are asking for one or more tweets/posts per university")
      (do
-       (create-file twitter-location)
-       (create-file facebook-location)
+       (create-file twitter-location facebook-location)
        (println "Start")
        (doseq [uni university-data]
          (println (str "Getting " (get uni :uni-name) "'s data"))
@@ -166,7 +165,7 @@
   Takes in two parameters which determine the locations to store the Twitter and Facebook
   data respectively"
   ([twitter-location facebook-location]
-    (-getData twitter-location facebook-location 10))
+   (-getData twitter-location facebook-location 10))
   ([twitter-location facebook-location num-results]
    (if (or (nil? twitter-location) (nil? facebook-location) (< num-results 1))
      (get-data "output/TwitterOutput.csv" "output/FacebookOutput.csv" 10)
@@ -179,6 +178,6 @@
   it outputs to the desired place with the correct number of tweets/posts for each university"
   [& args]
   (if (or (< (count args) 3)
-          (or (nil? (first args)) (nil? (second args)) (< (nth args 3) 1)))
+          (or (nil? (nth args 0)) (nil? (nth args 1)) (< (nth args 2) 1)))
     (get-data "output/TwitterOutput.csv" "output/FacebookOutput.csv")
-    (get-data (first args) (second args) (nth args 3))))
+    (get-data (nth args 0) (nth args 1) (nth args 2))))
