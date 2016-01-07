@@ -1,6 +1,6 @@
 (ns university-maps.core
   (require
-    [clojure.string :as str :only (split)]
+    [clojure.string :as str :only (split replace)]
     [clj-facebook-graph [client :as client]]
     [clojure.java.io :as io]
     [university-maps.config :as config])
@@ -38,10 +38,10 @@
   (let [file-loc (get-file-path "UnivDataInfo.csv")
         data-string (if (nil? file-loc)
                       ""
-                      (slurp file-loc))
-        all-uni-vec (str/split data-string #"\r\n")
-        all-individual-uni-vec (map #(str/split % #",") all-uni-vec)]
-    (map #(zipmap [:uni-name :lat :long :uni-hash-tag :uni-facebook-id] %) all-individual-uni-vec)))
+                      (slurp file-loc))]
+    (->> (str/split data-string #"\r\n")
+         (map #(str/split % #","))
+         (map #(zipmap [:uni-name :lat :long :uni-hash-tag :uni-facebook-id] %)))))
 
 ; Reads the data from WordSentiment.csv file. Data is split into two colums for each
 ; word: Word and the corresponding sentiment value. Each word is a hashtag inside an
@@ -50,9 +50,11 @@
   (let [file-loc (get-file-path "WordSentiment.csv")
         line (if (nil? file-loc)
                ","
-               (slurp file-loc))
-        all-word-vector (str/split line #"\n")]
-    (apply hash-map (flatten (map #(str/split % #",") all-word-vector)))))
+               (slurp file-loc))]
+    (->> (str/split line #"\n")
+         (map #(str/split % #","))
+         (flatten)
+         (apply hash-map))))
 
 (defn sum-sentiment
   "Given the text from a tweet, it sums up the total sentiment inside the text
@@ -61,9 +63,10 @@
   [text]
   (if (nil? text)
     0
-    (let [word-values word-sentiment-data
-          tweet-words (map str/lower-case (str/split text #" "))]
-      (reduce + (map #(read-string (get word-values % "0")) tweet-words)))))
+    (let [word-values word-sentiment-data]
+      (->> (map str/lower-case (str/split text #" "))
+           (map #(read-string (get word-values % "0")))
+           (reduce +)))))
 
 ; Create the ouath credentials to be able to make twitter API calls
 (def my-creds (make-oauth-creds config/twitter-consumer-key
@@ -73,7 +76,7 @@
 
 (defn search-university-by-hashtag
   "Searches twitter given a hashtag and returns the JSON response.
-  It gets ten of the most recent english responses back"
+  It gets a certain number (defualt 10) of the most recent english responses back"
   [uni-hashtag num-tweets]
   (search-tweets :oauth-creds my-creds
                  :callbacks (SyncSingleCallback. response-return-body
