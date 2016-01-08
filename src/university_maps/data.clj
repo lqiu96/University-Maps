@@ -1,31 +1,8 @@
-;
-; The MIT License
-;
-; Copyright 2015 Lawrence.
-;
-; Permission is hereby granted, free of charge, to any person obtaining a copy
-; of this software and associated documentation files (the "Software"), to deal
-; in the Software without restriction, including without limitation the rights
-; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-; copies of the Software, and to permit persons to whom the Software is
-; furnished to do so, subject to the following conditions:
-;
-; The above copyright notice and this permission notice shall be included in
-; all copies or substantial portions of the Software.
-;
-; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-; THE SOFTWARE.
-;
-
 (ns university-maps.data
   (:require
     [clojure.string :as str :only (replace)]
-    [university-maps.config :as config])
+    [university-maps.config :as config]
+    [clojure.java.io :as io])
   (:use
     [twitter.oauth]
     [twitter.callbacks]
@@ -33,8 +10,7 @@
     [twitter.api.restful])
   (:import
     (twitter.callbacks.protocols SyncSingleCallback)
-    (java.text SimpleDateFormat)
-    (java.util Date)))
+    (java.time LocalDate)))
 
 ; Create the ouath credentials to be able to make twitter API calls
 (def my-creds (make-oauth-creds config/twitter-consumer-key
@@ -43,28 +19,59 @@
                                 config/twitter-access-toke-secret))
 
 (defn search-twitter-query
-  [search-query num-tweets geocode date]
+  [search-query date]
   (search-tweets :oauth-creds my-creds
                  :callbacks (SyncSingleCallback. response-return-body
                                                  response-throw-error
                                                  exception-rethrow)
-                 :params {:q           search-query
-                          :count       num-tweets
-                          :geocode     geocode
-                          :until       date
-                          :lang        "en"}))
+                 :params {:q     search-query
+                          :count 100
+                          :until date
+                          :lang  "en"}))
 
 (defn get-twitter-query-text
-  [uni-hashtag num-tweets geo-code date]
-  (->> (get-in (search-twitter-query uni-hashtag num-tweets geo-code date) [:statuses])
+  [hash-tag date]
+  (->> (get-in (search-twitter-query hash-tag date) [:statuses])
        (map #(get % :text))))
 
-(defn get-query-by-city
-  [query geo-code]
-  (doseq [status (get-twitter-query-text query 10 geo-code (.format (SimpleDateFormat. "yyyy-MM-dd") (Date.)))]
-    (println (str/replace status #"[.,?!'\"\r\n\t]" ""))))
+(defn create-line
+  [date status]
+  (str date "," (str/replace status #"[.,?!'\"\r\n\t]" "") "\n"))
 
-(println "Philadelphia: ")
-(get-query-by-city "#Tesla" "39.95,-75.1667,50mi")
-(println "Palo Alto: ")
-(get-query-by-city "#Tesla" "37.4292,-122.1381,50mi")
+(defn create-file
+  "Checks if the file location exists. If not, it creates the file all
+  the necessary parent directories"
+  [& file-locations]
+  (doseq [file-location file-locations]
+    (if (.exists (io/file file-location))
+      nil
+      (io/make-parents file-location))))
+
+(defn write-to-file
+  "Takes in a file location a list of the lines to be put into the file.
+  Iterates through the list and appends it to the end of the file"
+  [file-name status-data]
+  (doseq [line status-data]
+    (spit file-name line :append true)))
+
+(defn write-list-to-file
+  [list file-location]
+  (doseq [line list]
+    (write-to-file file-location (str (str/replace line #"[.,?!'\"\r\n\t]" "") "\n"))))
+
+(defn search-query-by-day
+  [query file-location]
+  (let [dates (->> (LocalDate/now)
+                   (iterate #(.minusDays % 1))
+                   (take 7)
+                   (map #(str %))
+                   (reverse))]
+    (do
+      (create-file file-location)
+      (println "Starting...")
+      (let [data-list (map #(get-twitter-query-text query %) dates)]
+        (doseq [data data-list]
+          (write-list-to-file data file-location)))
+      (println "Done."))))
+
+(search-query-by-day "#Tesla" "output/WeekQueryOutput.csv")

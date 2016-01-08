@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [0.1.3] - 2016-01-07
+### Changed
+- Added functionality to be able to search for any query and return
+tweets for that topic from the previous week into a file
+
 ## [0.1.2] - 2016-01-05
 ### Changed
 - Data from Twitter and Facebook is split into two files.

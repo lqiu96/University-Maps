@@ -111,8 +111,8 @@
 (defn write-to-file
   "Takes in a file location a list of the lines to be put into the file.
   Iterates through the list and appends it to the end of the file"
-  [file-name uni-csv-data]
-  (doseq [line uni-csv-data]
+  [file-name data]
+  (doseq [line data]
     (spit file-name line :append true)))
 
 (defn create-line
@@ -140,7 +140,7 @@
   calculates the sentiment for each post, and puts each line back
   into the respective csv files"
   ([twitter-location facebook-location]
-   (get-data twitter-location facebook-location 10))
+   (get-data twitter-location facebook-location 15))
   ([twitter-location facebook-location num-results]
    (if (or (< num-results 1) (= (count university-data) 1))
      (println "Error: Cannot get the data. Check to make sure both
@@ -168,10 +168,10 @@
   Takes in two parameters which determine the locations to store the Twitter and Facebook
   data respectively"
   ([twitter-location facebook-location]
-   (-getData twitter-location facebook-location 10))
+   (-getData twitter-location facebook-location 15))
   ([twitter-location facebook-location num-results]
    (if (or (nil? twitter-location) (nil? facebook-location) (< num-results 1))
-     (get-data "output/TwitterOutput.csv" "output/FacebookOutput.csv" 10)
+     (get-data "output/TwitterOutput.csv" "output/FacebookOutput.csv" 15)
      (get-data twitter-location facebook-location num-results))))
 
 (defn -main
