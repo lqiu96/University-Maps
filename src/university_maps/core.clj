@@ -3,7 +3,8 @@
     [clojure.string :as str :only (split replace)]
     [clj-facebook-graph [client :as client]]
     [clojure.java.io :as io]
-    [university-maps.config :as config])
+    [university-maps.config :as config]
+    [university-maps.utility :as util])
   (:use
     [twitter.oauth]
     [twitter.callbacks]
@@ -17,56 +18,17 @@
     :methods [#^{:static true} [getData [String String] void]
               #^{:static true} [getData [String String int] void]]))
 
-(defn get-file-path
-  "Given a file path, it gets all the files in the current directory
-  and searches for the files."
-  [file-name]
-  (let [fs (file-seq (io/file (System/getProperty "user.dir")))
-        file-vec (vec fs)
-        file-loc (first (filter
-                          #(and (not (.isDirectory %))
-                                (= file-name (.getName %)))
-                          file-vec))]
-    (if (nil? file-loc)
-      nil
-      (.getPath file-loc))))
-
 ; Reads the data from UnivDataInfo.csv file. Data is split into 4 columsn for each
 ; university: name, latitude, longitude, hash-tag, and facebook-id. Each university is a hash-map
 ; inside an outer list
 (def university-data
-  (let [file-loc (get-file-path "UnivDataInfo.csv")
+  (let [file-loc (util/get-file-path "UnivDataInfo.csv")
         data-string (if (nil? file-loc)
                       ""
                       (slurp file-loc))]
     (->> (str/split data-string #"\r\n")
          (map #(str/split % #","))
          (map #(zipmap [:uni-name :lat :long :uni-hash-tag :uni-facebook-id] %)))))
-
-; Reads the data from WordSentiment.csv file. Data is split into two colums for each
-; word: Word and the corresponding sentiment value. Each word is a hashtag inside an
-; outer list
-(def word-sentiment-data
-  (let [file-loc (get-file-path "WordSentiment.csv")
-        line (if (nil? file-loc)
-               ","
-               (slurp file-loc))]
-    (->> (str/split line #"\n")
-         (map #(str/split % #","))
-         (flatten)
-         (apply hash-map))))
-
-(defn sum-sentiment
-  "Given the text from a tweet, it sums up the total sentiment inside the text
-  by adding the corresponding sentiment value for each word, or 0 if the word
-  does not have a sentiment"
-  [text]
-  (if (nil? text)
-    0
-    (let [word-values word-sentiment-data]
-      (->> (map str/lower-case (str/split text #" "))
-           (map #(read-string (get word-values % "0")))
-           (reduce +)))))
 
 ; Create the ouath credentials to be able to make twitter API calls
 (def my-creds (make-oauth-creds config/twitter-consumer-key
@@ -76,16 +38,17 @@
 
 (defn search-university-by-hashtag
   "Searches twitter given a hashtag and returns the JSON response.
-  It gets a certain number (defualt 10) of the most recent english responses back"
+  It gets a certain number (defualt 15) of the most recent english responses back"
   [uni-hashtag num-tweets]
   (search-tweets :oauth-creds my-creds
                  :callbacks (SyncSingleCallback. response-return-body
                                                  response-throw-error
                                                  exception-rethrow)
-                 :params {:q           uni-hashtag
-                          :count       num-tweets
-                          :lang        "en"
-                          :result-type "recent"}))
+                 :params {:q                uni-hashtag
+                          :count            num-tweets
+                          :lang             "en"
+                          :result-type      "recent"
+                          :include-entities false}))
 
 (defn get-university-tweets
   "Based on the hash-tag, it gets the responses puts the each text from the tweet
@@ -108,13 +71,6 @@
       facebook-auth
       (client/get [page-id :feed] {:query-params {:limit num-posts} :extract :data}))))
 
-(defn write-to-file
-  "Takes in a file location a list of the lines to be put into the file.
-  Iterates through the list and appends it to the end of the file"
-  [file-name data]
-  (doseq [line data]
-    (spit file-name line :append true)))
-
 (defn create-line
   "Creates a line to be inputted into the csv file given university data
   (name, lat, long, hashtag, facebook id) and a tweet. Creates a line
@@ -123,8 +79,9 @@
   (let [line (if (nil? text)
                ""
                (str/replace text #"[.,?!'\"\r\n\t]" ""))]
-    (str (get uni :uni-name) "," (get uni :lat) "," (get uni :long) "," (get uni :uni-hash-tag) "," (get uni :uni-facebook-id)
-         "," line "," (sum-sentiment line) "\n")))
+    (str (get uni :uni-name) "," (get uni :lat) "," (get uni :long) ","
+         (get uni :uni-hash-tag) "," (get uni :uni-facebook-id) ","
+         line "," (util/sum-sentiment line) "\n")))
 
 (defn create-file
   "Checks if the file location exists. If not, it creates the file all
@@ -159,8 +116,8 @@
                                   (get-facebook-page-feed num-results)
                                   (map #(create-line uni %))
                                   (future))]
-           (write-to-file twitter-location @twitter-data)
-           (write-to-file facebook-location @facebook-data)))
+           (util/write-to-file twitter-location @twitter-data)
+           (util/write-to-file facebook-location @facebook-data)))
        (println "Done")))))
 
 (defn -getData

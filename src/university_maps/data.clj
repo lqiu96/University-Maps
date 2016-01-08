@@ -2,7 +2,8 @@
   (:require
     [clojure.string :as str :only (replace)]
     [university-maps.config :as config]
-    [clojure.java.io :as io])
+    [clojure.java.io :as io]
+    [university-maps.utility :as util])
   (:use
     [twitter.oauth]
     [twitter.callbacks]
@@ -10,7 +11,10 @@
     [twitter.api.restful])
   (:import
     (twitter.callbacks.protocols SyncSingleCallback)
-    (java.time LocalDate)))
+    (java.time LocalDate))
+  (:gen-class
+    :name "TwitterSearch"
+    :methods [#^{:static true} [SearchQuery [String String] void]]))
 
 ; Create the ouath credentials to be able to make twitter API calls
 (def my-creds (make-oauth-creds config/twitter-consumer-key
@@ -19,47 +23,42 @@
                                 config/twitter-access-toke-secret))
 
 (defn search-twitter-query
+  "Searches twitter given a hashtag and returns the JSON response.
+  It gets 100 of the most ppular english responses back on the certain day
+  or up to the previous week if there are not enough tweets"
   [search-query date]
   (search-tweets :oauth-creds my-creds
                  :callbacks (SyncSingleCallback. response-return-body
                                                  response-throw-error
                                                  exception-rethrow)
-                 :params {:q     search-query
-                          :count 100
-                          :until date
-                          :lang  "en"}))
+                 :params {:q                search-query
+                          :count            100
+                          :until            date
+                          :lang             "en"
+                          :result-type      "mixed"
+                          :include-entities false}))
 
 (defn get-twitter-query-text
+  "Based on the hash-tag, it gets the responses puts the each text from the tweet
+  in a list of strings"
   [hash-tag date]
   (->> (get-in (search-twitter-query hash-tag date) [:statuses])
        (map #(get % :text))))
 
 (defn create-line
-  [date status]
-  (str date "," (str/replace status #"[.,?!'\"\r\n\t]" "") "\n"))
-
-(defn create-file
-  "Checks if the file location exists. If not, it creates the file all
-  the necessary parent directories"
-  [& file-locations]
-  (doseq [file-location file-locations]
-    (if (.exists (io/file file-location))
-      nil
-      (io/make-parents file-location))))
-
-(defn write-to-file
-  "Takes in a file location a list of the lines to be put into the file.
-  Iterates through the list and appends it to the end of the file"
-  [file-name status-data]
-  (doseq [line status-data]
-    (spit file-name line :append true)))
-
-(defn write-list-to-file
-  [list file-location]
-  (doseq [line list]
-    (write-to-file file-location (str (str/replace line #"[.,?!'\"\r\n\t]" "") "\n"))))
+  "Creates the line to add to the file. It removes all the extra information
+  such as commas, periods, new line, tabvs, etc. The line, the sentiment sum
+  and new line are added to te file"
+  [text]
+  (let [line (if (nil? text)
+               nil
+               (str/replace text #"[.,?!'\"\r\n\t]" ""))]
+    (str line "," (util/sum-sentiment line) "\n")))
 
 (defn search-query-by-day
+  "For each day of the week, starting a week ago and ending today, it
+  gets the list of tweets corresponding to the day and query and writes
+  it to the file location supplied"
   [query file-location]
   (let [dates (->> (LocalDate/now)
                    (iterate #(.minusDays % 1))
@@ -67,11 +66,16 @@
                    (map #(str %))
                    (reverse))]
     (do
-      (create-file file-location)
+      (util/create-file file-location)
       (println "Starting...")
       (let [data-list (map #(get-twitter-query-text query %) dates)]
         (doseq [data data-list]
-          (write-list-to-file data file-location)))
+          (util/write-to-file file-location (map #(create-line %) data))))
       (println "Done."))))
 
-(search-query-by-day "#Tesla" "output/WeekQueryOutput.csv")
+(defn -SearchQuery
+  "Simple Java Wrapper for the Clojure (search-query-by-day) function
+  which takes in a wuery to search for and a file location where the
+  data should be written to"
+  [query file-location]
+  (search-query-by-day query file-location))
