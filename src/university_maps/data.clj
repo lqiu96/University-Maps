@@ -14,7 +14,8 @@
     (java.time LocalDate))
   (:gen-class
     :name "TwitterSearch"
-    :methods [#^{:static true} [SearchQuery [String String] void]]))
+    :methods [#^{:static true} [searchQuery [String] void]
+              #^{:static true} [searchQuery [String String] void]]))
 
 ; Create the ouath credentials to be able to make twitter API calls
 (def my-creds (make-oauth-creds config/twitter-consumer-key
@@ -49,11 +50,12 @@
   "Creates the line to add to the file. It removes all the extra information
   such as commas, periods, new line, tabvs, etc. The line, the sentiment sum
   and new line are added to te file"
-  [text]
-  (let [line (if (nil? text)
+  [data]
+  (let [data-line (map #(get data :text))
+        line (if (nil? data-line)
                nil
-               (str/replace text #"[.,?!'\"\r\n\t]" ""))]
-    (str line "," (util/sum-sentiment line) "\n")))
+               (str/replace data-line #"[.,?!'\"\r\n\t]" ""))]
+    (str line "," (util/sum-sentiment line) "," (str data) "\n")))
 
 (defn search-query-by-day
   "For each day of the week, starting a week ago and ending today, it
@@ -73,9 +75,12 @@
           (util/write-to-file file-location (map #(create-line %) data))))
       (println "Done."))))
 
-(defn -SearchQuery
+(defn -searchQuery
   "Simple Java Wrapper for the Clojure (search-query-by-day) function
   which takes in a wuery to search for and a file location where the
-  data should be written to"
-  [query file-location]
-  (search-query-by-day query file-location))
+  data should be written to. If not provided a file to output to the
+  default place is an ouput directory in the file SearchOutput.csv"
+  ([query]
+   (search-query-by-day query "output/SearchOutput.csv"))
+  ([query file-location]
+   (search-query-by-day query file-location)))

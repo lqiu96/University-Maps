@@ -101,8 +101,8 @@
   ([twitter-location facebook-location num-results]
    (if (or (< num-results 1) (= (count university-data) 1))
      (println "Error: Cannot get the data. Check to make sure both
-     UnivDataInfo.csv and WordSentiment.csv are in the directory. Also
-     check to make sure you are asking for one or more tweets/posts per university")
+     UnivDataInfo.csv is in the directory. Also check to make sure you
+     are asking for one or more tweets/posts per university")
      (do
        (create-file twitter-location facebook-location)
        (println "Start")

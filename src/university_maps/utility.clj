@@ -50,9 +50,14 @@
   by adding the corresponding sentiment value for each word, or 0 if the word
   does not have a sentiment"
   [text]
-  (if (nil? text)
-    0
-    (let [word-values word-sentiment-data]
-      (->> (map str/lower-case (str/split text #" "))
-           (map #(read-string (get word-values % "0")))
-           (reduce +)))))
+  (if (= (count word-sentiment-data) 0)
+    (do
+      (println "Warning: Unable to load WordSentiment.csv. Check to make
+      sure that WordSentiment.csv is in file. Returned 0 as sum")
+      0)
+    (if (nil? text)
+      0
+      (let [word-values word-sentiment-data]
+        (->> (map str/lower-case (str/split text #" "))
+             (map #(read-string (get word-values % "0")))
+             (reduce +))))))
